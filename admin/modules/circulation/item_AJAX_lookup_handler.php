@@ -36,6 +36,11 @@ require SB.'admin/default/session_check.inc.php';
 
 $table_fields = trim($_POST['tableFields']);
 
+// SECURITY: column names go into the WHERE clause; only allow known ones
+if (!\SLiMS\Security\LookupAllowList::isAllowed('item_lookup', 'item', $table_fields)) {
+    \SLiMS\Security\LookupAllowList::deny();
+}
+
 if (isset($_POST['keywords']) AND !empty($_POST['keywords'])) {
     $keywords = $dbs->escape_string(urldecode(trim($_POST['keywords'])));
 } else {

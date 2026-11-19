@@ -33,6 +33,7 @@ use SLiMS\AlLibrarian;
 use SLiMS\Captcha\Factory as Captcha;
 use Volnix\CSRF\CSRF;
 use SLiMS\Auth\Validator;
+use SLiMS\Auth\LoginThrottle;
 use SLiMS\Http\Cookie;
 
 if ($sysconf['baseurl'] != '') {
@@ -102,7 +103,20 @@ if (isset($_POST['logMeIn'])) {
     // Empty username or password
     if (empty($username) or empty($password)) redirect()->withMessage('empty_field', __('Please supply valid username and password'))->back();
 
+    // brute-force protection: too many failures for this account or IP?
+    if ($wait = LoginThrottle::retryAfter('staff', $username)) {
+        writeLog('staff', $username, 'Login', 'Login BLOCKED (too many failed attempts) for user ' . $username . ' from address ' . ip());
+        Cookie::withPath(SWB)
+                ->withExpires(time() + 60)
+                ->withHttponly()
+                ->withSamesite('Lax')
+                ->set('login_error', LoginThrottle::message($wait));
+        redirect('?p=login&wrongpass=true');
+        exit();
+    }
+
     if ($logon->process('admin')) {
+        LoginThrottle::clear('staff', $username);
         // remember me
         if (isset($_POST['remember']) && $_POST['remember'] == 1) {
             $_SESSION['remember_me'] = true;
@@ -142,6 +156,7 @@ if (isset($_POST['logMeIn'])) {
 
         redirect('admin/index.php');
     } else {
+        LoginThrottle::fail('staff', $username);
         // write log
         writeLog('staff', $username, 'Login', 'Login FAILED for user ' . $username . ' from address ' . ip());
 

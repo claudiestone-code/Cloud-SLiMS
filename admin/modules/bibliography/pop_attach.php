@@ -122,8 +122,12 @@ if (isset($_POST['upload']) AND trim(strip_tags($_POST['fileTitle'])) != '') {
 
   if (isset($_FILES['file2attach']) AND $_FILES['file2attach']['size']) {
     // create upload object
-    $file_dir = trim($_POST['fileDir']);
-    $sub_dir = !empty($file_dir) ? trim($file_dir, '/\\') . DIRECTORY_SEPARATOR : '';
+    // SECURITY: sub folder inside repository/ only - no "..", no absolute paths
+    $file_dir = trim(str_replace('\\', '/', (string)($_POST['fileDir'] ?? '')), '/');
+    if ($file_dir !== '' && (!preg_match('#^[A-Za-z0-9_\-/ ]+$#', $file_dir) || preg_match('#(^|/)\.{1,2}(/|$)#', $file_dir))) {
+      $file_dir = '';
+    }
+    $sub_dir = !empty($file_dir) ? $file_dir . DIRECTORY_SEPARATOR : '';
     $file_upload = Storage::repository()->upload('file2attach', function($repository) use($sysconf) {
 
       // Extension check

@@ -31,11 +31,20 @@ require LIB.'ip_based_access.inc.php';
 do_checkIP('smc');
 do_checkIP('smc-circulation');
 
+// SECURITY: staff login + circulation privilege required (this script used to
+// be reachable anonymously and reflected the POSTed value into <script>)
+require SB.'admin/default/session.inc.php';
+require SB.'admin/default/session_check.inc.php';
+if (!utility::havePrivilege('circulation', 'r') || !utility::havePrivilege('circulation', 'w')) {
+    die('<div class="errorBox">'.__('You are not authorized to view this section').'</div>');
+}
+
 // quick return
 if (isset($_POST['quickReturnID'])) {
-    $_POST['quickReturnID'] = $dbs->escape_string(trim($_POST['quickReturnID']));
+    // encode for a JavaScript string literal (escapes quotes and "</script>")
+    $quickReturnData = json_encode('quickReturnID=' . rawurlencode(trim((string)$_POST['quickReturnID'])), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     echo '<script type="text/javascript">'."\n";
-    echo 'parent.$(\'#circulationLayer\').simbioAJAX(\''.MWB.'circulation/circulation_action.php\', {method: \'post\', addData: \'quickReturnID='.trim($_POST['quickReturnID']).'\'});'."\n";
+    echo 'parent.$(\'#circulationLayer\').simbioAJAX(\''.MWB.'circulation/circulation_action.php\', {method: \'post\', addData: '.$quickReturnData.'});'."\n";
     echo 'parent.$(\'#quickReturnID\').val(\'\');'."\n";
     echo 'parent.$(\'#quickReturnID\').focus();'."\n";
     echo '</script>';

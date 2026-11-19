@@ -40,6 +40,11 @@ $limit = 20;
 $table_name = $dbs->escape_string(trim($_POST['tableName']));
 $table_fields = trim($_POST['tableFields']);
 
+// SECURITY: only known table/column combinations (see lib/Security/LookupAllowList.php)
+if (!\SLiMS\Security\LookupAllowList::isAllowed('vocabolary', $table_name, $table_fields)) {
+	\SLiMS\Security\LookupAllowList::deny(isset($_GET['format']) && $_GET['format'] == 'json');
+}
+
 if (isset($_POST['keywords']) and !empty($_POST['keywords'])) {
 	$keywords = $dbs->escape_string(urldecode(ltrim($_POST['keywords'])));
 } else {

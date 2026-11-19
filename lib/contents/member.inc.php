@@ -26,6 +26,7 @@ use SLiMS\Url;
 use SLiMS\DB;
 use SLiMS\Json;
 use SLiMS\Auth\Validator;
+use SLiMS\Auth\LoginThrottle;
 use SLiMS\Captcha\Factory as Captcha;
 use Volnix\CSRF\CSRF;
 
@@ -111,10 +112,18 @@ if (isset($_POST['logMeIn']) && !$is_member_login) {
     }
     # <!-- Captcha form processing - end -->
 
+    // brute-force protection: too many failures for this member ID or IP?
+    if ($wait = LoginThrottle::retryAfter('member', $username)) {
+        writeLog('member', $username, 'Login', sprintf('Login BLOCKED (too many failed attempts) for member %s from address %s', $username, ip()));
+        CSRF::generateToken();
+        redirect()->withMessage('wrong_password', LoginThrottle::message($wait))->to('?p=member');
+    }
+
     // regenerate session ID to prevent session hijacking
     session_regenerate_id(true);
 
     if ($logon->process('member')) {
+        LoginThrottle::clear('member', $username);
         // write log
         writeLog('member', $username, 'Login', sprintf(__('Login success for member %s from address %s'),$username,ip()));
         if (isset($_GET['destination']) && Url::isValid($_GET['destination']) && Url::isSelf($_GET['destination'])) {
@@ -124,6 +133,7 @@ if (isset($_POST['logMeIn']) && !$is_member_login) {
         }
         exit();
     } else {
+        LoginThrottle::fail('member', $username);
         // write log
         writeLog('member', $username, 'Login', sprintf(__('Login FAILED for member %s from address %s'),$username,ip()));
         // message

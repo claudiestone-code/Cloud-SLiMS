@@ -20,12 +20,24 @@
  *
  */
 
+// SECURITY: this is a long-running WebSocket daemon. It must be started from
+// the command line (php chatserver.php); a web request would otherwise start
+// an endless server loop inside a web worker (easy denial of service).
+if (php_sapi_name() !== 'cli') {
+	http_response_code(404);
+	exit;
+}
+
 // prevent the server from timing out
 set_time_limit(0);
 
-// call configuration 
+// call configuration
 define('INDEX_AUTH', '1');
-require 'sysconfig.inc.php';
+require __DIR__ . '/sysconfig.inc.php';
+
+if (empty($sysconf['chat_system']['enabled'])) {
+	exit("Chat system is disabled (\$sysconf['chat_system']['enabled']).\n");
+}
 
 // include the web sockets server script (the server is started at the far bottom of this file)
 require 'lib/phpwebsocket.php';

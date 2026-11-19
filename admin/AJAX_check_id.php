@@ -15,6 +15,12 @@ require SB.'admin/default/session_check.inc.php';
 
 $table_name = $dbs->escape_string(trim($_POST['tableName']));
 $table_fields = $dbs->escape_string(trim($_POST['tableFields']));
+
+// SECURITY: only known table/column combinations (see lib/Security/LookupAllowList.php)
+if (!\SLiMS\Security\LookupAllowList::isAllowed('check_id', $table_name, $table_fields)) {
+  http_response_code(403);
+  die('<strong style="color: #FF0000;">Lookup not allowed</strong>');
+}
 if (isset($_POST['id']) AND !empty($_POST['id'])) {
   $id = $dbs->escape_string(trim($_POST['id']));
 } else {

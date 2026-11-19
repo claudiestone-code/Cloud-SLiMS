@@ -8,10 +8,24 @@ $opac->page_title = '';
 if (!isset($_SESSION['user']['2fa']) || is_null($_SESSION['user']['2fa'] ?? null)) redirect('index.php?p=login');
 
 if (isset($_POST['code-6'])) {
+    // brute-force protection: a 6 digit code must not be guessable by
+    // unlimited retries. After too many wrong codes the pending login is
+    // dropped and the user has to start again with the password.
+    $twoFaAccount = (string)($_SESSION['user']['uname'] ?? '');
+    if ($wait = SLiMS\Auth\LoginThrottle::retryAfter('staff-2fa', $twoFaAccount)) {
+        unset($_SESSION['user']);
+        Cookie::withPath(SWB)->withExpires(time() + 60)->withHttponly()->withSamesite('Lax')
+            ->set('login_error', SLiMS\Auth\LoginThrottle::message($wait));
+        redirect('index.php?p=login&wrongpass=true');
+    }
+
     $code = '';
-    for ($i=1; $i <= 6; $i++) $code .= $_POST['code-' . $i];
+    for ($i=1; $i <= 6; $i++) $code .= (string)($_POST['code-' . $i] ?? '');
     $otp = OTPHP\TOTP::createFromSecret($_SESSION['user']['2fa']);
-    if ($otp->verify($code)) {
+    if (!$otp->verify($code)) {
+        SLiMS\Auth\LoginThrottle::fail('staff-2fa', $twoFaAccount);
+    } else {
+        SLiMS\Auth\LoginThrottle::clear('staff-2fa', $twoFaAccount);
 
         $username = $_SESSION['user']['uname'];
         $realname = $_SESSION['user']['realname'];

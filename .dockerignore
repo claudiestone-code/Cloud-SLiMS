@@ -2,3 +2,11 @@
 .gitignore
 docker-compose.yml
 Dockerfile
+# SECURITY: never bake secrets or history into the image / web root
+.git
+.env
+.env.*
+!.env.example
+config/database.php
+config/env.php
+files/backup/*.sql*

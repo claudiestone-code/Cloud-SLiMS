@@ -11,7 +11,20 @@
     # Protect hidden directory from vulnerability scanner
     RewriteRule (^|/)\.([^/]+)(/|$) - [L,F]
     RewriteRule (^|/)([^/]+)~(/|$) - [L,F]
+    # SECURITY: never serve dependencies, configuration, backups or old SQL directly
+    RewriteRule ^(vendor|config|upgrade/old_sql|files/backup)(/|$) - [L,F]
 </IfModule>
+
+# SECURITY: build / deployment files are not part of the website
+<FilesMatch "^(composer\.(json|lock)|Dockerfile|docker-compose\.ya?ml|entrypoint\.sh|\.env.*)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
 
 # Don't show directory listings for URLs which map to a directory.
 Options -Indexes
@@ -33,4 +46,9 @@ DirectoryIndex index.php
 <IfModule mod_headers.c>
   Header set X-XSS-Protection "1; mode=block"
   Header always set X-Frame-Options SAMEORIGIN
+  Header always set X-Content-Type-Options nosniff
+  Header always set Referrer-Policy strict-origin-when-cross-origin
+  # HSTS only when this Apache itself serves HTTPS (behind a TLS load balancer,
+  # set Strict-Transport-Security on the load balancer instead)
+  Header always set Strict-Transport-Security "max-age=31536000" env=HTTPS
 </IfModule>

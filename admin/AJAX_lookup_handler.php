@@ -33,11 +33,8 @@ require_once '../sysconfig.inc.php';
 require SB . 'admin/default/session.inc.php';
 require SB . 'admin/default/session_check.inc.php';
 
-header('Access-Control-Allow-Origin: *'); 
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Access-Control-Max-Age: 86400');
-
+// SECURITY: no wildcard CORS headers; this endpoint is only used by SLiMS'
+// own admin pages (same origin).
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
@@ -55,6 +52,11 @@ $limit = 20;
 $table_state = explode(':', trim($_POST['tableName']));
 $table_name = trim($table_state[1]??$table_state[0]);
 $table_fields = trim($_POST['tableFields']);
+
+// SECURITY: only known table/column combinations (see lib/Security/LookupAllowList.php)
+if (!\SLiMS\Security\LookupAllowList::isAllowed('lookup', $table_name, $table_fields)) {
+	\SLiMS\Security\LookupAllowList::deny($rawInput);
+}
 
 if (isset($_POST['keywords']) and !empty($_POST['keywords'])) {
 	$keywords = urldecode(ltrim($_POST['keywords']));

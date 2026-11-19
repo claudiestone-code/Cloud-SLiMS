@@ -22,6 +22,7 @@
 
 use SLiMS\Url;
 use SLiMS\Http\Client;
+use SLiMS\Auth\LoginThrottle;
 use SLiMS\Captcha\Factory as Captcha;
 
 // be sure that this file not accessed directly
@@ -60,43 +61,81 @@ if (isset($_POST['resetPass'])) {
         if ($captcha->isSectionActive()) {    
             try {
                 if ($captcha->isValid() === false) throw new Exception(__('Captcha incorrect.'));
-                    
+
+                // rate limit reset requests (per e-mail and per IP): stops mail
+                // flooding and slows down probing for registered addresses
+                if ($wait = LoginThrottle::retryAfter('forgot', $email)) throw new Exception(LoginThrottle::message($wait));
+                LoginThrottle::fail('forgot', $email);
+
+                // the answer is the same whether or not the address exists, so
+                // the form cannot be used to discover staff e-mail addresses
+                $genericSuccess = __('<strong>Thank you.</strong> If this e-mail address belongs to a staff account, password reset instructions have been sent to it.');
+
                 // Validate current email
                 $_q = $dbs->query("SELECT user_id, realname FROM user WHERE email='{$email}'");
 
-                if ($_q->num_rows === 0) throw new Exception(__('Current email not found. Please try again.'));
-                
-                // Name
-                $file_d = $_q->fetch_assoc();
-                $name = $file_d['realname'];
-                /// Generate a token for forgot password
-                // "<issued unix time>.<64 random hex chars>" (75 chars, fits `forgot` VARCHAR(80)).
-                // The timestamp lets newpass.inc.php expire the token without a schema change.
-                $salt = time() . '.' . bin2hex(random_bytes(32));
-                $_sql_update_salt = sprintf("UPDATE user SET forgot = '{$salt}', last_update = CURDATE() WHERE email = '%s'", $email);
-                // write log
-                writeLog('staff', $name, 'Forgot Password', $name.' has been requested a new password.', 'Password', 'Request');
-                $_update_q = $dbs->query($_sql_update_salt);
-                
-                // force scheme to https
-                if (Url::getPort() == '443') Url::$forceHttps = true;
+                if ($_q->num_rows === 0) {
+                    flash('resetSuccess', $genericSuccess);
+                } else {
+                    // Name
+                    $file_d = $_q->fetch_assoc();
+                    $name = $file_d['realname'];
+                    /// Generate a token for forgot password
+                    // "<issued unix time>.<64 random hex chars>" (75 chars, fits `forgot` VARCHAR(80)).
+                    // The timestamp lets newpass.inc.php expire the token without a schema change.
+                    $salt = time() . '.' . bin2hex(random_bytes(32));
+                    $_sql_update_salt = sprintf("UPDATE user SET forgot = '{$salt}', last_update = CURDATE() WHERE email = '%s'", $email);
+                    // write log
+                    writeLog('staff', $name, 'Forgot Password', $name.' has been requested a new password.', 'Password', 'Request');
+                    $_update_q = $dbs->query($_sql_update_salt);
 
-                // set hook process variable
-                $hookProcess = Client::withHeaders([
-                    "X-API-KEY" => $salt
-                ])->post('https://slims.web.id/mailer/forgot.php', [
-                    'url' => (string)Url::getSlimsFullUri(),
-                    'salt' => $salt,
-                    'email' => $email,
-                    'name' => $name
-                ]);
+                    // reset link on this server
+                    $reset_link = (Url::isHttps() ? 'https://' : 'http://') . Url::getDomain() . SWB
+                        . 'index.php?p=newpass&email=' . urlencode(stripslashes($email)) . '&salt=' . urlencode($salt);
 
-                if ($hookProcess->getStatusCode() !== 200 || $hookProcess->getContent() == 'false') {
-                    $error = (isDev() ? ' ' . __('Error') . ' : ' . $hookProcess->getError() : ' ' . __('Error not available'));
-                    throw new Exception(__('Cannot send the email. Please try again.') . $error);
+                    // SECURITY: send the reset link with this library's own SMTP
+                    // server (System > Mail Setting) when it is configured, so the
+                    // reset token never leaves your infrastructure. The SLiMS
+                    // project's public mailer is only a fallback, and can be turned
+                    // off with config/password_reset.php: ['remote_mailer' => false]
+                    $mailConfig = config('mail');
+                    $localMailReady = is_array($mailConfig) && !empty($mailConfig['server']) && $mailConfig['server'] !== '_server_';
+
+                    if ($localMailReady) {
+                        try {
+                            \SLiMS\Mail::to(stripslashes($email), $name)
+                                ->subject(__('Password reset request') . ' - ' . $sysconf['library_name'])
+                                ->message(
+                                    sprintf(__('Hello %s,'), $name) . "\n\n"
+                                    . __('A password reset was requested for your SLiMS staff account. Open this link within 1 hour to choose a new password:') . "\n\n"
+                                    . $reset_link . "\n\n"
+                                    . __('If you did not request this, ignore this e-mail; your password stays unchanged.')
+                                )
+                                ->send();
+                        } catch (\Throwable $mailError) {
+                            throw new Exception(__('Cannot send the email. Please try again.') . (isDev() ? ' ' . $mailError->getMessage() : ''));
+                        }
+                    } else if (config('password_reset.remote_mailer', true) !== false) {
+                        // set hook process variable
+                        $hookProcess = Client::withHeaders([
+                            "X-API-KEY" => $salt
+                        ])->post('https://slims.web.id/mailer/forgot.php', [
+                            'url' => (string)Url::getSlimsFullUri(),
+                            'salt' => $salt,
+                            'email' => $email,
+                            'name' => $name
+                        ]);
+
+                        if ($hookProcess->getStatusCode() !== 200 || $hookProcess->getContent() == 'false') {
+                            $error = (isDev() ? ' ' . __('Error') . ' : ' . $hookProcess->getError() : ' ' . __('Error not available'));
+                            throw new Exception(__('Cannot send the email. Please try again.') . $error);
+                        }
+                    } else {
+                        throw new Exception(__('E-mail is not configured. Please ask the administrator to set up System > Mail Setting.'));
+                    }
+
+                    flash('resetSuccess', $genericSuccess);
                 }
-                    
-                flash('resetSuccess', __('<strong>Congratulations! </strong>An instruction has been sent to your email. Please check your inbox.'));
             } catch (Exception $e) {
                 flash('resetFailed', $e->getMessage());
             }

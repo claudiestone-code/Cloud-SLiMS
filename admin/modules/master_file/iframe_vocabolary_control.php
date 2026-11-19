@@ -12,11 +12,21 @@ do_checkIP('smc');
 do_checkIP('smc-masterfile');
 // start the session
 require SB.'admin/default/session.inc.php';
+// SECURITY: this page used to run without a login check (anyone could delete
+// vocabulary links, and itemID was injectable into SQL)
+require SB.'admin/default/session_check.inc.php';
 require SIMBIO.'simbio_GUI/table/simbio_table.inc.php';
 require SIMBIO.'simbio_DB/simbio_dbop.inc.php';
 
+// privileges checking
+$can_read = utility::havePrivilege('master_file', 'r');
+$can_write = utility::havePrivilege('master_file', 'w');
+if (!$can_read) {
+    die('<div class="errorBox">'.__('You are not authorized to view this section').'</div>');
+}
+
 // GET ID FROM URL
-$itemID = (integer)isset($_GET['itemID']) ? $_GET['itemID'] : 0;
+$itemID = isset($_GET['itemID']) ? (int)$_GET['itemID'] : 0;
 
 // start buffer
 ob_start();
@@ -40,7 +50,7 @@ function confirmProcess(topic_id, vocabolary_id, related_topic_id)
 }
 </script>
 <?php
-if (isset($_POST['remove'])) {
+if (isset($_POST['remove']) && $can_write) {
     $tid = (integer)$_POST['tid'];
     $vid = (integer)$_POST['remove'];
     $related_topic_id = (integer)$_POST['related_topic_id'];

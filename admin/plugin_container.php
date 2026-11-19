@@ -10,6 +10,14 @@ use \SLiMS\Plugins;
 define('INDEX_AUTH', 1);
 require_once __DIR__ . '/../sysconfig.inc.php';
 
+// SECURITY: admin plugin pages are only for logged-in staff. Previously each
+// plugin had to check this itself; a plugin that forgot was public.
+// (Plugins may still include these files again; that is harmless.)
+require_once LIB . 'ip_based_access.inc.php';
+do_checkIP('smc');
+require SB . 'admin/default/session.inc.php';
+require SB . 'admin/default/session_check.inc.php';
+
 if (!isset($_GET['mod']) && !isset($_GET['id'])) die('Plugin id not defined!');
 
 $module = utility::filterData('mod', 'get', false, true, true);

@@ -59,8 +59,9 @@ class Native extends Contract
         // verify password hash
         $verified = password_verify($this->password, $this->data['mpasswd'] ?? '');
         if (!$verified) {
-            //check if md5
-            if ($this->data['mpasswd'] == md5($this->password)) {
+            //check if md5 (legacy). Strict, constant-time comparison: a loose ==
+            // treats "magic" hashes such as 0e123... as equal numbers.
+            if (is_string($this->data['mpasswd'] ?? null) && $this->data['mpasswd'] !== '' && hash_equals($this->data['mpasswd'], md5($this->password))) {
                 $update_password = DB::query("UPDATE member SET mpasswd = ?, last_update = CURDATE() WHERE member_id = ?", [password_hash($this->password, PASSWORD_BCRYPT), $this->username]);
                 // error check
                 if (!$update_password->isAffected()) throw new Exception(__('Failed to query user data from database with error: ') . $update_password->getError(), 500);
@@ -92,15 +93,23 @@ class Native extends Contract
             WHERE u.username=?
         SQL, [$this->username]);
 
-        if ($user->count() < 1) throw new Exception(!empty($error = $user->getError()) ? $error : __('Username not exists in database!'), 404);
+        // SECURITY: same message (and comparable timing) whether the username
+        // exists or not, so attackers cannot discover valid staff usernames.
+        $genericError = __('Wrong Username or Password. ACCESS DENIED');
+
+        if ($user->count() < 1) {
+            // burn the same CPU time as a real bcrypt check
+            password_verify($this->password, '$2y$10$7rLSvRVyTQORapkDOqmkhetjF6H9lJHngr4hJMSM2lHObJbW5EQh6');
+            throw new Exception(isDev() && !empty($error = $user->getError()) ? $error : $genericError, 401);
+        }
 
         $this->data = $user->first();
 
         // verify password hash
-        $verified = password_verify($this->password, $this->data['passwd']);
+        $verified = password_verify($this->password, (string)$this->data['passwd']);
         if (!$verified) {
-            // MD5 wrong password
-            if (md5($this->password) !== $this->data['passwd']) throw new Exception("Wrong Password", 401);
+            // MD5 wrong password (legacy hashes, compared in constant time)
+            if (!hash_equals((string)$this->data['passwd'], md5($this->password))) throw new Exception($genericError, 401);
 
             // maybe still use md5 encryption
             $newPasswd = password_hash($this->password, PASSWORD_BCRYPT);
