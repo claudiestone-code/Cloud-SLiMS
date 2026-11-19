@@ -27,8 +27,9 @@ if (!defined('INDEX_AUTH')) {
 }
 
 require '../sysconfig.inc.php';
-// set cookie
-$cookie_path = preg_replace('@m\/*@i', '', SENAYAN_WEB_ROOT_DIR);
+// set cookie for the site root (SWB is ".../m/" here).
+// SENAYAN_WEB_ROOT_DIR no longer exists, which made this page a fatal error.
+$cookie_path = preg_replace('@m/$@i', '', SWB);
 // create cookies of lightweight mode
 if (isset($_GET['fullsite'])) {
     #@setcookie('FULLSITE_MODE', 1, time()+43200, $cookie_path);

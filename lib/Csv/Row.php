@@ -55,7 +55,8 @@ class Row implements IteratorAggregate,Countable
     {
         $this->columns = new Columns($data);
         $this->standart = $standart??config('csv');
-        if (is_callable($this->customFormatter)) $this->customFormatter = $callback;
+        // (the old check tested the still-empty property, so a formatter was never stored)
+        if (is_callable($callback)) $this->customFormatter = $callback;
     }
 
     /**
@@ -93,7 +94,8 @@ class Row implements IteratorAggregate,Countable
         $encloser = $this->standart['enclosed_with'];
         $separator = $this->standart['separator'];
         
-        if (is_callable($this->customFormatter)) $content = $this->customFormatter($content);
+        // call the stored closure (not a method named customFormatter)
+        if (is_callable($this->customFormatter)) $content = ($this->customFormatter)($content);
         return $encloser . str_replace($encloser, $encloser.$encloser, $content) . $encloser . $separator;
     }
 

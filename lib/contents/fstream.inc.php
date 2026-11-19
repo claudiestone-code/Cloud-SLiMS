@@ -101,7 +101,9 @@ if ($file_d['mime_type'] == 'application/pdf') {
 /**
  * Video strema file
  */
-if (strpos($file_d['mime_type'], 'video') === true) {
+// (strpos() returns an int position or false, never true: the old "=== true"
+//  check meant videos never used the seekable Range-request streamer)
+if (strpos((string)$file_d['mime_type'], 'video') === 0) {
   require_once LIB . 'VideoStream.php';
   $stream = new VideoStream($repository, $file_loc, $file_d['mime_type']);
   $stream->start();

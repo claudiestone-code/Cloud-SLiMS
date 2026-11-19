@@ -46,6 +46,15 @@ if (!function_exists('slimsErrorHandler'))
 {
     function slimsErrorHandler($severity, $message, $filepath, $line)
     {
+        // Respect the @ operator and the configured error_reporting level.
+        // Without this, every warning that the code deliberately silences with @
+        // (e.g. @unserialize(), @$dbs->query()) aborted the page with an error
+        // screen / HTTP 500, in production too. Fatal errors that reach the
+        // shutdown handler are not affected.
+        if (!(error_reporting() & $severity)) {
+            return false;
+        }
+
         $is_error = (((E_ERROR | E_PARSE | E_COMPILE_ERROR | E_CORE_ERROR | E_USER_ERROR | E_WARNING) & $severity) === $severity);
 
         if ($is_error) {

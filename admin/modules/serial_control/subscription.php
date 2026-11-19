@@ -153,8 +153,8 @@ ob_start();
 /* main content */
 if ($can_write AND ( isset($_POST['detail']) OR (isset($_GET['detail']) AND $_GET['detail'] == 'true') )) {
     /* RECORD FORM */
-    $biblioID = (integer)isset($_GET['biblioID'])?$_GET['biblioID']:0;
-    $itemID = (integer)isset($_GET['itemID'])?$_GET['itemID']:0;
+    $biblioID = isset($_GET['biblioID']) ? (int)$_GET['biblioID'] : 0;
+    $itemID = isset($_GET['itemID']) ? (int)$_GET['itemID'] : 0;
     $rec_q = $dbs->query('SELECT * FROM serial WHERE biblio_id='.$biblioID.' AND serial_id='.$itemID);
     $rec_d = $rec_q->fetch_assoc();
 

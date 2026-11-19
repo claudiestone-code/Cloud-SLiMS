@@ -99,6 +99,11 @@ $form->table_attr = 'id="dataList" class="s-table table"';
 $form->table_header_attr = 'class="alterCell font-weight-bold"';
 $form->table_content_attr = 'class="alterCell2"';
 
+// a minimal config/env.php may only define $env
+$based_on_ip = $based_on_ip ?? false;
+$range_ip = $range_ip ?? [];
+$conditional_environment = $conditional_environment ?? ($env ?? 'production');
+
 // Your Environment
 if ($based_on_ip)
 {

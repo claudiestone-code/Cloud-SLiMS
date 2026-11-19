@@ -21,6 +21,18 @@
  */
 
 /**
+ * Recalculate the byte length of every s:N:"..." string in a serialized value
+ * (fixes data whose text was edited without updating the declared length)
+ */
+if (!function_exists('repairSerializedLengths')) {
+  function repairSerializedLengths(string $serialized): string {
+    return preg_replace_callback('/s:(\d+):"(.*?)";(?=[sibdaNO]:|N;|\}|$)/s', function ($m) {
+      return 's:' . strlen($m[2]) . ':"' . $m[2] . '";';
+    }, $serialized) ?? $serialized;
+  }
+}
+
+/**
  * Function to load and override print settings from database
  */
 function loadPrintSettings($dbs, $type) {
@@ -30,6 +42,16 @@ function loadPrintSettings($dbs, $type) {
     $barcode_settings_d = $barcode_settings_q->fetch_row();
     if ($barcode_settings_d[0]) {
       $barcode_settings = @unserialize(stripslashes($barcode_settings_d[0]));
+      if ($barcode_settings === false) {
+        // Older install SQL shipped a membercard setting whose string lengths
+        // did not match, so the saved settings were silently ignored (and the
+        // member card page errored). Repair the lengths and store the fix.
+        $repaired = repairSerializedLengths(stripslashes($barcode_settings_d[0]));
+        $barcode_settings = @unserialize($repaired);
+        if (is_array($barcode_settings)) {
+          $dbs->query("UPDATE setting SET setting_value='".$dbs->escape_string($repaired)."' WHERE setting_name='".$dbs->escape_string($type)."_print_settings'");
+        }
+      }
       if (is_array($barcode_settings) && count($barcode_settings) > 0) {
         foreach ($barcode_settings as $setting_name => $val) {
           $sysconf['print'][$type][$setting_name] = $val;

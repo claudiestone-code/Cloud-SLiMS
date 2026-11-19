@@ -87,7 +87,8 @@ class Mount implements IteratorAggregate
         $result = [];
         foreach (array_slice($storages, 2) as $order => $storage) {
             $order = $order + 1;
-            if (!$storage instanceof Contract) throw new Exception("Argument #{$order} is not instance of Provider contract.");
+            // \Exception: there is no SLiMS\Filesystems\Exception class (that threw "Class not found")
+            if (!$storage instanceof Contract) throw new \Exception("Argument #{$order} is not instance of Provider contract.");
             else $result[$storage->getDiskname()] = $storage->getFilesystem();
         }
 

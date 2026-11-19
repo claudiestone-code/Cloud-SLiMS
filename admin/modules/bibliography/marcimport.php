@@ -110,13 +110,19 @@ if (isset($_POST['doImport'])) {
     ));
     $upload->setMaxSize($max_size);
     $upload->setUploadDir($temp_dir);
-    $upload_status = $upload->doUpload('importFile');
+    // Upload under a unique name and remove it after reading. Previously the
+    // file stayed in files/ under its original name, so importing a file with
+    // the same name again failed ("File type not allowed or the size is more
+    // than ..."), and names changed by the upload sanitizer could not be read.
+    $upload_status = $upload->doUpload('importFile', 'marcimport_' . bin2hex(random_bytes(8)));
     if ($upload_status !== UPLOAD_SUCCESS) {
       utility::jsToastr('MARC Import', __('Upload failed! File type not allowed or the size is more than') . ($sysconf['max_upload'] / 1024) . ' MB', 'error');
       exit();
     }
+    $uploaded_file = $temp_dir . DS . $upload->new_filename;
     $updated_row = 0;
     $marc_string = file_get_contents($uploaded_file);
+    @unlink($uploaded_file);
     $marc_string = mb_convert_encoding($marc_string, "UTF-8", "auto");
     // var_dump($marc_string); die();
 
@@ -326,7 +332,9 @@ if (isset($_POST['doImport'])) {
       // Main entry
       $author_flds = $record->getFields('100|110|111', true);
       if ($author_flds) {
-        foreach ($author_flds as $tag => $auth_fld) {
+        foreach ($author_flds as $auth_fld) {
+          // getFields() returns a numerically indexed list, so read the real tag
+          $tag = $auth_fld ? (string)$auth_fld->getTag() : '';
           if ($tag == '110') {
             $author_type = 'o';
           } else if ($tag == '111') {
@@ -350,11 +358,14 @@ if (isset($_POST['doImport'])) {
       $author_flds = $record->getFields('700|710|711', true);
       if ($author_flds) {
         // echo 'Author: ';
-        foreach ($author_flds as $tag => $auth_fld) {
-          // if ($tag == '710') {
-          if (stripos($tag, '10') === true) {
+        foreach ($author_flds as $auth_fld) {
+          // 710 = organisation, 711 = conference, 700 = person
+          // (getFields() returns a numerically indexed list, so read the real tag;
+          //  stripos() never returns true, so the old checks never matched)
+          $tag = $auth_fld ? (string)$auth_fld->getTag() : '';
+          if ($tag == '710') {
             $author_type = 'o';
-          } else if (stripos($tag, '11') === true) {
+          } else if ($tag == '711') {
             $author_type = 'c';
           } else {
             $author_type = 'p';

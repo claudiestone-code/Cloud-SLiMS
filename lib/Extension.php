@@ -63,8 +63,22 @@ final class Extension
     private function pearValidator()
     {
         try {
-            include 'System.php';
-            include 'File/MARC.php';
+            // Look the files up first: a bare include of a missing file raises a
+            // warning that SLiMS' error handler turns into an "Oops Error" page,
+            // instead of the friendly "PEAR / File_MARC is required" message.
+            // PEAR itself (System.php + PEAR/Exception.php, which File_MARC
+            // require_once's: a missing file there is an uncatchable fatal error)
+            foreach (['System.php', 'PEAR/Exception.php'] as $pearFile) {
+                if (stream_resolve_include_path($pearFile) === false) return false;
+            }
+            if (!class_exists('System')) include_once 'System.php';
+
+            // File_MARC: SLiMS bundles it in admin/modules/bibliography/File
+            if (!class_exists('File_MARC')) {
+                $bundled = defined('MDLBS') ? MDLBS . 'bibliography/File/MARC.php' : '';
+                if ($bundled && is_file($bundled)) include_once $bundled;
+                else if (stream_resolve_include_path('File/MARC.php') !== false) include_once 'File/MARC.php';
+            }
             return class_exists('System') && class_exists('File_MARC');
         } catch (\Throwable $th) {
             return false;

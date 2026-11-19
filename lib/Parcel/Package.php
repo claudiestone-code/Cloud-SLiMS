@@ -54,7 +54,8 @@ class Package implements \IteratorAggregate,\JsonSerializable,\Countable
     {
         try {
             $filepathInfo = pathinfo($filepath);
-            if (!class_exists($packager)) throw new Exception("Packger $packager is not available!");
+            // \Exception: there is no SLiMS\Parcel\Exception class (that threw "Class not found")
+            if (!class_exists($packager)) throw new \Exception("Packger $packager is not available!");
             if (!isset($this->packages[$filepathInfo['filename']])) $this->packages[$filepathInfo['filename']] = new $packager($filepath);
             return $this->packages[$filepathInfo['filename']];
         } catch (\Exception $e) {

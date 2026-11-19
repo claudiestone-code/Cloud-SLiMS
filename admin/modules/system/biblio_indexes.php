@@ -62,7 +62,7 @@ if (isset($_POST['detail']) OR (isset($_GET['action']) AND $_GET['action'] == 'd
   }
 
   /* empty table */
-  if ($_GET['detail'] == 'empty') {
+  if (($_GET['detail'] ?? '') =='empty') {
     $indexer = new biblio_indexer($dbs);
     $empty = $indexer->emptyingIndex();
     if ($empty) {
@@ -82,7 +82,7 @@ if (isset($_POST['detail']) OR (isset($_GET['action']) AND $_GET['action'] == 'd
   }
 
   /* Update table */
-  if ($_GET['detail'] == 'update') {
+  if (($_GET['detail'] ?? '') =='update') {
     set_time_limit(0);
     $indexer = new biblio_indexer($dbs);
     $indexer->updateFullIndex();
@@ -107,7 +107,7 @@ if (isset($_POST['detail']) OR (isset($_GET['action']) AND $_GET['action'] == 'd
   }
 
   /* re-create index table */
-  if ($_GET['detail'] == 'reindex') {
+  if (($_GET['detail'] ?? '') =='reindex') {
     set_time_limit(0);
     $bib_sql = 'SELECT COUNT(*) FROM search_biblio';
     $rec_bib_q = $dbs->query($bib_sql);

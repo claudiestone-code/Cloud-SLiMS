@@ -272,7 +272,7 @@ if (isset($_POST['detail']) or (isset($_GET['action']) and $_GET['action'] == 'd
     }
     /* RECORD FORM */
     // try query
-    $itemID = (int)isset($_POST['itemID']) ? $_POST['itemID'] : 0;
+    $itemID = isset($_POST['itemID']) ? (int)$_POST['itemID'] : 0;
     // if ($itemID < 1) { die("Invalid itemID"); }
     $rec_q = $dbs->query('SELECT item.*, b.biblio_id, b.title, s.supplier_name
         FROM item
@@ -347,7 +347,7 @@ if (isset($_POST['detail']) or (isset($_GET['action']) and $_GET['action'] == 'd
     $str_input .= '</div>';
     $form->addAnything(__('Item Code'), $str_input);
     // call number
-    $form->addTextField('text', 'callNumber', __('Call Number'), $rec_d['call_number'] ?? $def_call_number, 'style="width: 50%;" class="form-control"');
+    $form->addTextField('text', 'callNumber', __('Call Number'), $rec_d['call_number'] ?? ($def_call_number ?? ''), 'style="width: 50%;" class="form-control"');
     // inventory code
     $form->addTextField('text', 'inventoryCode', __('Inventory Code'), $rec_d['inventory_code'] ?? '', 'style="width: 50%;" class="form-control"');
     // item location

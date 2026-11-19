@@ -168,7 +168,7 @@ class Validator
      */
     function findUserByToken(string $token): ?array
     {
-        [$selector, $validator] = $this->parseToken($token);
+        [$selector, $validator] = $this->parseToken($token) ?? [null, null];
 
         if (!$selector) {
             return null;
@@ -213,7 +213,11 @@ class Validator
      */
     function isTokenValid($token): bool
     {
-        [$selector, $validator] = $this->parseToken($token);
+        // a malformed cookie (no "selector:validator") used to pass null on and
+        // crash every page with a TypeError (HTTP 500) until cookies were cleared
+        $parts = $this->parseToken((string)$token);
+        if (!$parts || $parts[0] === '' || $parts[1] === '') return false;
+        [$selector, $validator] = $parts;
 
         $tokens = $this->getUserToken($selector);
 

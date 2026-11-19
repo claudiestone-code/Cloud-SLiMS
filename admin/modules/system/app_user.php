@@ -176,7 +176,7 @@ if (isset($_POST['saveData'])) { //echo '<pre>'; var_dump($_SESSION); echo '</pr
             $data['groups'] = trim($groups);
         }
         if (($passwd1 AND $passwd2) AND ($passwd1 === $passwd2)) {
-            if ( (isset($_GET['changecurrent'])) AND ($_GET['changecurrent']='true') ) {
+            if (isset($_GET['changecurrent'])) {
                 $old_passwd = $dbs->escape_string(trim($_POST['old_passwd']));
                 $up_q = $dbs->query('SELECT passwd FROM user WHERE user_id='.$_SESSION['uid']);
                 $up_d = $up_q->fetch_row();
@@ -405,7 +405,7 @@ if (isset($_POST['detail']) OR (isset($_GET['action']) AND $_GET['action'] == 'd
     }
     /* RECORD FORM */
     // try query
-    $itemID = (integer)isset($_POST['itemID'])?$_POST['itemID']:0;
+    $itemID = isset($_POST['itemID']) ? (int)$_POST['itemID'] : 0;
     if ($changecurrent) {
         $itemID = (integer)$_SESSION['uid'];
     }
@@ -545,7 +545,7 @@ if (isset($_POST['detail']) OR (isset($_GET['action']) AND $_GET['action'] == 'd
         $form->addCheckBox('groups', __('Group(s)'), $group_options, unserialize($rec_d['groups']??''));
     }
     // user password
-    if ( (isset($_GET['changecurrent'])) AND ($_GET['changecurrent']='true') ) {
+    if (isset($_GET['changecurrent'])) {
         $form->addTextField('password', 'old_passwd', __('Old Password').'*', '', 'style="width: 50%;" class="form-control"');
     }
     $form->addTextField('password', 'passwd1', __('New Password').'*', '', 'style="width: 50%;" class="form-control"');
