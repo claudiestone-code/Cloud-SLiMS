@@ -225,7 +225,7 @@ class Native extends Contract
         }
 
         // update the last login time
-        $updateLastLogin = DB::query("UPDATE member SET last_login='" . date("Y-m-d H:i:s") . "', last_login_ip='" . ip() . "' WHERE member_id=?", [$this->data['mid']]);
+        $updateLastLogin = DB::query("UPDATE member SET last_login=?, last_login_ip=? WHERE member_id=?", [date("Y-m-d H:i:s"), (string)ip(), $this->data['mid']]);
         $updateLastLogin->run();
 
         unset($this->data['mpasswd']);

@@ -740,9 +740,10 @@ class utility
             $str_log_type = $obj_db->escape_string(trim($str_file_id));
             $str_value_id = $obj_db->escape_string(trim($str_member_id));
             $str_user_id = $obj_db->escape_string(trim($str_user_id));
+            $str_client_ip = $obj_db->escape_string((string)ip());
             // insert log data to database
-            @$obj_db->query('INSERT INTO `' . $_log_table . '` (`filelog_id`,`file_id`,`date_read`,`member_id`,`user_id`,`client_ip`) 
-            VALUES (NULL, \'' . $str_file_id . '\', \'' . $_log_date . '\', \'' . $str_value_id . '\', \'' . $str_user_id . '\', \'' . ip() . '\')');
+            @$obj_db->query('INSERT INTO `' . $_log_table . '` (`filelog_id`,`file_id`,`date_read`,`member_id`,`user_id`,`client_ip`)
+            VALUES (NULL, \'' . $str_log_type . '\', \'' . $_log_date . '\', \'' . $str_value_id . '\', \'' . $str_user_id . '\', \'' . $str_client_ip . '\')');
         }
     }
 }

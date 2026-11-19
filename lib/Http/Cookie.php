@@ -21,6 +21,12 @@ final class Cookie
         'samesite' => ''
     ];
 
+    public function __construct()
+    {
+        // cookies set over HTTPS are always marked Secure
+        $this->options['secure'] = \SLiMS\Url::isHttps();
+    }
+
     /**
      * register a new cookie
      *

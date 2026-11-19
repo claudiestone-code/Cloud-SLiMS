@@ -1,0 +1,12 @@
+# Database backups contain password hashes and member personal data.
+# They must never be served directly; download them from
+# Admin > System > Database Backup instead.
+# NOTE: only effective on Apache with "AllowOverride All" (or AuthConfig/Limit).
+# For nginx, add:  location ^~ /files/backup/ { deny all; }
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

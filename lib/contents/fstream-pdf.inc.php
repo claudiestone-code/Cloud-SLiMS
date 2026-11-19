@@ -48,16 +48,19 @@ if ($file_q->num_rows > 0) {
     $repository = Storage::repository();
     if ($repository->isExists($file_loc)) {
         if ($file_d['access_limit']) {
+            // SECURITY: every denial must stop here. The redirects used to fall
+            // through to streamFile(), so the PDF was still sent after the
+            // Location header.
             if (utility::isMemberLogin()) {
-                $allowed_mem_types = @unserialize($file_d['access_limit']);
-                if (!in_array($_SESSION['m_member_type_id'], $allowed_mem_types)) {
+                $allowed_mem_types = @unserialize($file_d['access_limit'], ['allowed_classes' => false]);
+                if (!is_array($allowed_mem_types) || !in_array($_SESSION['m_member_type_id'], $allowed_mem_types)) {
                     header("location:index.php?p=error&errnum=601");
-                    //~ continue;
+                    exit();
                 }
             } else {
                 $referto = SWB.'index.php?p=member&destination=index.php?p=fstream-pdf&fid='.$fileID.'&bid='.$biblioID;
                 header("location:$referto");
-                //~ continue;
+                exit();
             }
         }
         $repository->streamFile($file_loc);

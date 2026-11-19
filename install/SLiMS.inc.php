@@ -391,13 +391,20 @@ SQL;
 
     if (!is_writable(dirname($base_config_file))) throw new Exception('Directory ' . dirname($base_config_file) . ' not writable', 5001);
 
+    // SECURITY: values are written into a PHP file, so they must be exported as
+    // PHP string literals (var_export) - never pasted raw between quotes, which
+    // allowed PHP code injection through e.g. the password or engine fields.
     $config_content = file_get_contents($base_config_file);
-    $config_content = str_replace("_DB_HOST_", $options['db_host'], $config_content);
+    $config_content = str_replace("'_DB_HOST_'", var_export((string)$options['db_host'], true), $config_content);
     $config_content = str_replace("'_DB_PORT_'", (isset($options['db_port']) ? (int)$options['db_port'] : 3306), $config_content);
-    $config_content = str_replace("_DB_NAME_", $options['db_name'], $config_content);
-    $config_content = str_replace("_DB_USER_", $options['db_user'], $config_content);
-    $config_content = str_replace("_DB_PASSWORD_", $options['db_pass'], $config_content);
-    if (isset($_POST['engine'])) $config_content = str_replace("_STORAGE_ENGINE_", trim($_POST['engine']), $config_content);
+    $config_content = str_replace("'_DB_NAME_'", var_export((string)$options['db_name'], true), $config_content);
+    $config_content = str_replace("'_DB_USER_'", var_export((string)$options['db_user'], true), $config_content);
+    $config_content = str_replace("'_DB_PASSWORD_'", var_export((string)$options['db_pass'], true), $config_content);
+    if (isset($_POST['engine'])) {
+      // storage engine names are plain identifiers (MyISAM, InnoDB, Aria, ...)
+      $engine = preg_match('/^[A-Za-z0-9_]{1,32}$/', trim((string)$_POST['engine'])) ? trim($_POST['engine']) : 'MyISAM';
+      $config_content = str_replace("'_STORAGE_ENGINE_'", var_export($engine, true), $config_content);
+    }
 
     $config_file = fopen($config_file_path, 'w');
     $write = fwrite($config_file, $config_content);

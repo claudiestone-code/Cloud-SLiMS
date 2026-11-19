@@ -30,6 +30,13 @@ if (INDEX_AUTH != 1) {
     die("can not access this file directly");
 }
 
+// CSRF protection: reject state changing requests (POST, ...) to the admin
+// area that come from another site. Extra trusted hosts can be added in
+// config/csrf.php -> ['trusted_hosts' => [...]]; set 'origin_check' => false to disable.
+if (config('csrf.origin_check', true) !== false) {
+    \SLiMS\Http\SameOrigin::enforce();
+}
+
 // Cleanup SQL Injection and Common XSS
 $sanitizer->cleanUp(
     filter: [false, true, true] /* escape_sql, trim, strip_tag */, 

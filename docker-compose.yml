@@ -27,8 +27,11 @@ services:
   db:
     image: mariadb:lts
     container_name: db
+    # SECURITY: only reachable from the server itself (e.g. for backups via
+    # an SSH tunnel). Docker bypasses ufw, so "${DB_PORT}:3306" would expose
+    # MariaDB to the whole internet. SLiMS reaches it over the internal network.
     ports:
-      - "${DB_PORT}:3306"
+      - "127.0.0.1:${DB_PORT}:3306"
     volumes:
       - ./install/senayan.sql:/docker-entrypoint-initdb.d/01-senayan.sql
       - ./install/sampledata.sql:/docker-entrypoint-initdb.d/02-sampledata.sql

@@ -22,8 +22,29 @@ class Files extends Contract
         @session_cache_limiter('nocache');
         // set session name and start the session
         @session_name(COOKIES_NAME);
-        // set session cookies params
-        @session_set_cookie_params(86400, SWB.'admin/');
+        // set session cookies params.
+        // lifetime 0 = cookie is dropped when the browser closes; the server
+        // side timeout ($sysconf['session_timeout']) still applies.
+        @session_set_cookie_params(self::cookieParams(0, SWB.'admin/'));
+    }
+
+    /**
+     * Hardened session cookie parameters
+     *
+     * @param integer $lifetime
+     * @param string $path
+     * @return array
+     */
+    private static function cookieParams(int $lifetime, string $path): array
+    {
+        return [
+            'lifetime' => $lifetime,
+            'path' => $path,
+            'domain' => '',
+            'secure' => \SLiMS\Url::isHttps(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ];
     }
 
     public function memberArea()
@@ -37,6 +58,6 @@ class Files extends Contract
         // set session name and start the session
         @session_name(MEMBER_COOKIES_NAME);
         // set session cookies params
-        @session_set_cookie_params(43200, SWB);
+        @session_set_cookie_params(self::cookieParams(43200, SWB));
     }
 }

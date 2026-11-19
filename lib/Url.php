@@ -77,6 +77,30 @@ class Url
     }
 
     /**
+     * Is the current request served over HTTPS?
+     *
+     * Used to decide whether cookies get the "Secure" flag. Honours
+     * url.force_https, a TLS-terminating load balancer configured in
+     * config/loadbalanced.php, and a direct HTTPS connection.
+     *
+     * @return boolean
+     */
+    public static function isHttps(): bool
+    {
+        if (self::getConfig('url.force_https')) return true;
+
+        $loadBalance = self::getConfig('loadbalanced');
+        if ($loadBalance && !empty($loadBalance['env'])) {
+            if (strtolower($loadBalance['options']['scheme'] ?? '') === 'https') return true;
+            if (strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') return true;
+        }
+
+        if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') return true;
+
+        return ($_SERVER['SERVER_PORT'] ?? null) == 443;
+    }
+
+    /**
      * Path is string after domain without filename
      *
      * @return string

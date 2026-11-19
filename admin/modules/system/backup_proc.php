@@ -98,7 +98,10 @@ if (isset($_POST['start']) && isset($_POST['tkn']) && $_POST['tkn'] === $_SESSIO
             ini_set('max_execution_time', 0);
 
             // time string to append to filename
-            $time2append = (date('Ymd_His'));
+            // SECURITY: backups live under files/ which is web-served; a random
+            // suffix makes the file name unguessable even if the web server
+            // ignores files/backup/.htaccess (nginx, AllowOverride None).
+            $time2append = date('Ymd_His') . '_' . bin2hex(random_bytes(12));
             $dump = DB::backup();
             $dump->start($sysconf['backup_dir'].DS.'backup_'.$time2append.'.sql');
 

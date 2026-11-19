@@ -20,28 +20,30 @@ echo "PHP configuration file created: /var/www/html/config/env.php"
 cat /var/www/html/config/env.php
 
 # Write environment variables to database.php
-cat <<EOF >/var/www/html/config/database.php
-<?php
-return [
-    'default_profile' => 'SLiMS',
-    'proxy' => false,
-    'nodes' => [
-        'SLiMS' => [
-            'host' => '${DB_HOST}',
-            'database' => '${DB_NAME}',
-            'port' => '${DB_PORT}',
-            'username' => '${DB_USER}',
-            'password' => '${DB_PASS}',
-            'options' => [
-                'storage_engine' => 'MyISAM'
-            ]
-        ]
-    ]
+# Values are exported with var_export() so quotes or other special
+# characters in e.g. the password cannot break (or inject into) the PHP file.
+php -r '
+$config = [
+    "default_profile" => "SLiMS",
+    "proxy" => false,
+    "nodes" => [
+        "SLiMS" => [
+            "host" => (string)getenv("DB_HOST"),
+            "database" => (string)getenv("DB_NAME"),
+            "port" => (string)getenv("DB_PORT"),
+            "username" => (string)getenv("DB_USER"),
+            "password" => (string)getenv("DB_PASS"),
+            "options" => ["storage_engine" => "MyISAM"],
+        ],
+    ],
 ];
-EOF
+file_put_contents("/var/www/html/config/database.php", "<?php\nreturn " . var_export($config, true) . ";\n");
+'
+chown root:www-data /var/www/html/config/database.php
+chmod 640 /var/www/html/config/database.php
 
+# Never print database.php: it contains the database password.
 echo "PHP configuration file created: /var/www/html/config/database.php"
-cat /var/www/html/config/database.php
 
 # Wait for database to be ready
 echo "Waiting for database to be ready..."
@@ -98,6 +100,12 @@ if (\$stmt->affected_rows > 0) {
 else
     echo "Admin password already initialized, skipping."
 fi
+
+# Block direct web access to database backups. files/ is a volume, so an
+# existing volume would not receive the .htaccess shipped in the image.
+mkdir -p /var/www/html/files/backup
+printf 'Require all denied\n' > /var/www/html/files/backup/.htaccess
+chown -R www-data:www-data /var/www/html/files/backup
 
 # Start the PHP application
 exec "$@"

@@ -246,7 +246,7 @@ class Validator
                 'expires' => $expired_seconds,
                 'path' => SWB,
                 'domain' => '',
-                'secure' => false,
+                'secure' => \SLiMS\Url::isHttps(),
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -254,7 +254,7 @@ class Validator
                 'expires' => $expired_seconds,
                 'path' => AWB,
                 'domain' => '',
-                'secure' => false,
+                'secure' => \SLiMS\Url::isHttps(),
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
@@ -281,6 +281,8 @@ class Validator
             $user = $this->findUserByToken($token);
 
             if ($user) {
+                // new privilege level -> new session id (prevents session fixation)
+                if (session_status() === PHP_SESSION_ACTIVE) @session_regenerate_id(true);
                 $this->methodInstance->setData($user);
                 $this->methodInstance->setAdminData()->generateSession();
                 return true;
@@ -320,7 +322,7 @@ class Validator
             'expires' => time()-86400,
             'path' => $path,
             'domain' => '',
-            'secure' => false,
+            'secure' => \SLiMS\Url::isHttps(),
             'httponly' => true,
             'samesite' => 'Lax',
         ]);

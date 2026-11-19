@@ -68,7 +68,20 @@ class Ip
      */
     public function get()
     {
-        return $this->server[$this->sourceRemoteIp]??$this->server['REMOTE_ADDR'];
+        $remoteAddr = (string)($this->server['REMOTE_ADDR'] ?? '');
+        if ($this->sourceRemoteIp === 'REMOTE_ADDR') return $remoteAddr;
+
+        // SECURITY: proxy headers such as X-Forwarded-For are client controlled.
+        // Never return them raw (they were concatenated into SQL and used for
+        // IP allow-lists). Use the right-most valid IP, i.e. the one appended
+        // by your own (trusted) load balancer / reverse proxy.
+        $candidates = array_reverse(explode(',', (string)($this->server[$this->sourceRemoteIp] ?? '')));
+        foreach ($candidates as $candidate) {
+            $candidate = trim($candidate);
+            if (filter_var($candidate, FILTER_VALIDATE_IP)) return $candidate;
+        }
+
+        return $remoteAddr;
     }
 
     /**

@@ -70,7 +70,9 @@ if (isset($_POST['resetPass'])) {
                 $file_d = $_q->fetch_assoc();
                 $name = $file_d['realname'];
                 /// Generate a token for forgot password
-                $salt = password_hash($email, PASSWORD_DEFAULT);
+                // "<issued unix time>.<64 random hex chars>" (75 chars, fits `forgot` VARCHAR(80)).
+                // The timestamp lets newpass.inc.php expire the token without a schema change.
+                $salt = time() . '.' . bin2hex(random_bytes(32));
                 $_sql_update_salt = sprintf("UPDATE user SET forgot = '{$salt}', last_update = CURDATE() WHERE email = '%s'", $email);
                 // write log
                 writeLog('staff', $name, 'Forgot Password', $name.' has been requested a new password.', 'Password', 'Request');

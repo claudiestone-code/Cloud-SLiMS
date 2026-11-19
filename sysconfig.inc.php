@@ -62,10 +62,16 @@ registerSlimsHandler();
 
 $plugins = Plugins::getInstance();
 
-// use httpOnly for cookie
+// harden session cookies:
+// - httpOnly: not readable from JavaScript
+// - SameSite=Lax: not sent on cross-site POST requests (CSRF mitigation)
+// - strict mode: reject session IDs the server did not issue (session fixation)
+// - secure: set further below (needs the config, which needs the path constants)
 @ini_set( 'session.cookie_httponly', true );
 @ini_set( 'session.use_only_cookies', true );
+@ini_set( 'session.use_strict_mode', true );
 @ini_set( 'session.cookie_secure', false );
+@ini_set( 'session.cookie_samesite', 'Lax' );
 
 // check if safe mode is on
 if ((bool) ini_get('safe_mode')) {
@@ -157,6 +163,10 @@ define('MWB', SWB.'admin/'.MDL.'/');
 
 // repository web base dir
 define('REPO_WBS', SWB.REPO.'/');
+
+// session cookies only travel over HTTPS when the site is served over HTTPS
+// (directly, via url.force_https, or behind a TLS terminating load balancer)
+@ini_set( 'session.cookie_secure', \SLiMS\Url::isHttps() );
 
 // Check database config
 if (!file_exists(SB.'config'.DS.'database.php')) {

@@ -36,15 +36,27 @@ if ($sysconf['https_enable']) {
     simbio_security::doCheckHttps($sysconf['https_port']);
 }
 
-$email = $dbs->escape_string($_GET['email']);
-$salt = $dbs->escape_string($_GET['salt']);
+$email = $dbs->escape_string($_GET['email'] ?? '');
+$salt = $dbs->escape_string($_GET['salt'] ?? '');
 $url = $_SERVER['SCRIPT_NAME'].'?'.$_SERVER['QUERY_STRING'];
 
+// SECURITY: a reset token must be present, well formed and not expired.
+// Previously an empty salt matched every account whose `forgot` column had
+// been reset to '' after a successful password change (account takeover).
+$reset_token_lifetime = (int)config('password_reset_lifetime', 3600); // seconds
+$token_valid = $email !== ''
+    && preg_match('/^(\d{10})\.[a-f0-9]{64}$/', $salt, $token_match)
+    && ((int)$token_match[1] + $reset_token_lifetime) >= time();
+
 // validate current salt and email
-$query = sprintf("SELECT user_id,realname FROM user WHERE email='%s' AND forgot='%s'", $email, $salt);
+if ($token_valid) {
+  $query = sprintf("SELECT user_id,realname FROM user WHERE email='%s' AND forgot='%s'", $email, $salt);
+} else {
+  $query = 'SELECT user_id,realname FROM user WHERE 1=0';
+}
 $_q = $dbs->query($query);
 $file_d = $_q->fetch_assoc();
-$_uname = $file_d['realname'];
+$_uname = $file_d['realname'] ?? '';
 
 
 // update password
@@ -57,8 +69,9 @@ if (isset($_POST['updatePassword'])) {
     utility::jsAlert(__('Password confirmation does not match. See if your Caps Lock key is on!'));
   } else {
     // Confirm about email and salt again
-    if ($_q->num_rows > 0) {
-      $_sql_update_password = sprintf("UPDATE user SET passwd = '%s', last_update = CURDATE(), forgot='' WHERE email = '%s' AND forgot= '%s'", password_hash($passwd2, PASSWORD_BCRYPT), $email, $salt);
+    if ($token_valid && $_q->num_rows > 0) {
+      // token is single use: clear it to NULL (never '')
+      $_sql_update_password = sprintf("UPDATE user SET passwd = '%s', last_update = CURDATE(), forgot=NULL WHERE email = '%s' AND forgot= '%s'", password_hash($passwd2, PASSWORD_BCRYPT), $email, $salt);
       $_update_q = $dbs->query($_sql_update_password);
       // error check
       if ($dbs->error) {

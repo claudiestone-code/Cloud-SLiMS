@@ -32,10 +32,23 @@ if (!isset($_SESSION['success_quries'])) {
 // switch request
 $_POST = json_decode(file_get_contents('php://input'), true);
 $action = isset($_POST['action']) ? $_POST['action'] : '';
+
+// SECURITY: once SLiMS is configured, the installer API must not be usable.
+// Without this guard anyone could point SLiMS at their own database or inject
+// PHP code into config/database.php ("do-upgrade" rewrites it).
+// The only exception is the "config file not writable" retry flow
+// (re-install / re-upgrade), and only for the browser session that hit that error.
+$isInstalled = file_exists(__DIR__ . '/../config/database.php');
+$isRetry = in_array($action, ['re-install', 're-upgrade'], true) && !empty($_SESSION['install_retry_allowed']);
+if ($isInstalled && !$isRetry) {
+  http_response_code(403);
+  die(json_encode(['status' => false, 'message' => ['SLiMS is already installed. Remove the install/ directory.']]));
+}
+
 if ($action === 're-install' || $action === 're-upgrade') {
   if (file_exists($databaseConfigPath = __DIR__ . '/../config/database.php')) {
     $profile = require_once $databaseConfigPath;
-    extract($profile['nodes'][$profile['default']]);
+    extract($profile['nodes'][$profile['default_profile'] ?? $profile['default'] ?? 'SLiMS']);
     $_SESSION['db_host'] = $host;
     $_SESSION['db_name'] = $database;
     $_SESSION['db_user'] = $username;
@@ -231,9 +244,12 @@ switch ($action) {
       $slims->createConfigFile($_SESSION);
       // write environment file
       $slims->createEnvFile();
+      unset($_SESSION['install_retry_allowed']);
       die(json_encode(['status' => true, 'message' => 'SLiMS Successful be installed']));
     } catch (Exception $exception) {
       if ($exception->getCode() === 5000 || $exception->getCode() === 5001) {
+        // config file could not be written: allow this session (only) to retry
+        $_SESSION['install_retry_allowed'] = true;
         $_SESSION['admin_username'] = $_POST['username'];
         $_SESSION['admin_password'] = $_POST['confirmPasswd'];
       }
@@ -287,11 +303,13 @@ switch ($action) {
         die(json_encode(['status' => false, 'message' => $upgrade, 'code' => 5006]));
       }
 
-      unset($_SESSION['success_quries']);
+      unset($_SESSION['success_quries'], $_SESSION['install_retry_allowed']);
 
       die(json_encode(['status' => true]));
     } catch (Exception $exception) {
       if ($exception->getCode() === 5000 || $exception->getCode() === 5001) {
+        // config file could not be written: allow this session (only) to retry
+        $_SESSION['install_retry_allowed'] = true;
         $_SESSION['oldVersion'] = $_POST['oldVersion'];
       }
       die(json_encode(['status' => false, 'message' => [$exception->getMessage()], 'code' => $exception->getCode()]));

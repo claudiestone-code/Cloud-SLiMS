@@ -80,8 +80,8 @@ class admin_logon
 
         // update the last login time
         $obj_db->query("UPDATE user SET last_login='".date("Y-m-d H:i:s")."',
-            last_login_ip='".ip()."'
-            WHERE user_id=".$this->user_info['user_id']);
+            last_login_ip='".$obj_db->escape_string((string)ip())."'
+            WHERE user_id=".(int)$this->user_info['user_id']);
 
         return true;
     }

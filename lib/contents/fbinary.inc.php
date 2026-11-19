@@ -41,7 +41,21 @@ $file_q = $dbs->query($sql_q);
 $file_d = $file_q->fetch_assoc();
 
 if ($file_q->num_rows > 0) {
+    // SECURITY: enforce the per member-type access limit, same as fstream.
+    // Without this, restricted attachments could be downloaded anonymously.
+    if ($file_d['access_limit']) {
+        if (!utility::isMemberLogin()) {
+            header('location:' . SWB . 'index.php?p=member&destination=' . urlencode('index.php?p=fstream&fid=' . $fileID . '&bid=' . $biblioID));
+            exit();
+        }
+        $allowed_mem_types = @unserialize($file_d['access_limit'], ['allowed_classes' => false]);
+        if (!is_array($allowed_mem_types) || !in_array($_SESSION['m_member_type_id'], $allowed_mem_types)) {
+            header('location:index.php?p=error&errnum=601');
+            exit();
+        }
+    }
     $path = REPOBS.DS.( $file_d['file_dir'] ? $file_d['file_dir'].DS:'' ).$file_d['file_name'];
+    header('X-Content-Type-Options: nosniff');
     header("Content-Type: ".$file_d['mime_type']);
     echo file_get_contents($path);
     exit;
