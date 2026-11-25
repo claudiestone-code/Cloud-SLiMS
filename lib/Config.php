@@ -444,7 +444,14 @@ class Config
             return;
         }
 
-        copy($samplePath, $targetPath);
+        // These files are optional (config() falls back to defaults), so a
+        // read-only config/ directory - e.g. a Docker image where Apache runs as
+        // www-data - must not turn every page into an "Oops Error".
+        if (!is_writable($configBasePath)) {
+            return;
+        }
+
+        @copy($samplePath, $targetPath);
     }
 
     /**

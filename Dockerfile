@@ -29,6 +29,11 @@ RUN composer install --no-dev --no-interaction --optimize-autoloader
 RUN chown -R www-data:www-data /var/www/html/files
 RUN chown -R www-data:www-data /var/www/html/images
 RUN chown -R www-data:www-data /var/www/html/repository
+# SLiMS writes optional settings files into config/ at runtime (csp.php, auth.php,
+# captcha.php, database_backup.php, ...). Apache runs as www-data, so the folder
+# must be writable by it; database.php itself is re-created by entrypoint.sh
+# as root:www-data with mode 640.
+RUN chown www-data:www-data /var/www/html/config
 RUN rm -rf /var/www/html/install
 
 COPY entrypoint.sh /entrypoint.sh
